@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Push current working version to private GitHub repo
-# Ghost Malone - Mirror-first reflection updates
+# Ghost Malone - Emotion trajectory visualization
 
 set -e  # Exit on error
 
@@ -9,13 +9,29 @@ echo "📦 Staging changes..."
 git add .
 
 echo "💬 Committing..."
-git commit -m "Update reflection: mirror-first, more concise responses
+git commit -m "Add emotion trajectory visualization & state persistence
 
-- Reduced word limit from 80 to 60 words
-- Explicit instruction sequence: mirror → validate → (optional) anchor
+Visual Features:
+- Plotly scatter plot showing emotions on valence/arousal grid
+- Real-time trajectory tracking with directional analysis
+- Text summary displaying emotion arc (escalating/stable/etc.)
+- Quadrant labels: Excited, Anxious, Calm, Sad
+
+Emotion Intelligence:
+- State persistence: neutral messages inherit previous emotion
+- Enhanced emotion detection patterns (pissy, infuriating, frustrated)
+- Emotion decay over time for realistic continuity
+- Memory cleared on startup for fresh conversations
+
+Reflection Improvements:
+- Mirror-first approach (60 word limit)
 - No premature solutions or therapy-speak
-- Stronger emotion arc integration in system prompts
-- Working baseline with Claude Sonnet 4.5 integration"
+- Emotion arc context passed to Claude Sonnet 4.5
+
+Technical:
+- Fixed emotion trajectory data structure (primary_label)
+- Plotly integration with Gradio
+- Improved MCP tool coordination"
 
 echo "🚀 Pushing to GitHub..."
 git push origin main

@@ -140,20 +140,49 @@ def compute_emotional_direction(trajectory: List[Dict[str, Any]]) -> str:
 def get_emotion_trajectory(store: Dict[str, Any], k: int = 10) -> Tuple[List[Dict[str, Any]], str]:
     """
     Returns last k emotion events from memory and the trajectory direction.
+    If a message is neutral, it inherits the previous emotion state.
     """
     stm = store.get("stm", [])
     trajectory = []
+    last_emotion_state = None  # Track last non-neutral emotion
 
     for item in stm[-k:]:
+        # Check if emotion data is in event.emotion (from remember_event)
         event = item.get("event", {})
         emotion = event.get("emotion", {})
+
+        # Also check if emotion data is in meta (from remember)
+        if not emotion or not emotion.get("labels"):
+            meta = item.get("meta", {})
+            if meta and meta.get("labels"):
+                emotion = meta
+
         if emotion and emotion.get("labels"):
+            primary_label = (emotion.get("labels") or ["neutral"])[0]
+            valence = float(emotion.get("valence", 0.0))
+            arousal = float(emotion.get("arousal", 0.5))
+
+            # If this is neutral/weak emotion, inherit previous state
+            confidence = float(emotion.get("confidence", 0.25))
+            if primary_label in ["happy", "neutral"] and confidence < 0.35 and last_emotion_state:
+                # Carry forward previous emotion (decay slightly toward neutral)
+                primary_label = last_emotion_state["primary_label"]
+                valence = last_emotion_state["valence"] * 0.8  # Slight decay
+                arousal = last_emotion_state["arousal"] * 0.9
+            else:
+                # Strong emotion detected, update state
+                last_emotion_state = {
+                    "primary_label": primary_label,
+                    "valence": valence,
+                    "arousal": arousal
+                }
+
             trajectory.append({
-                "label": (emotion.get("labels") or ["neutral"])[0],
-                "valence": float(emotion.get("valence", 0.0)),
-                "arousal": float(emotion.get("arousal", 0.5)),
-                "ts": event.get("ts", int(time.time())),
-                "text": event.get("text", "")[:50]  # First 50 chars
+                "primary_label": primary_label,
+                "valence": valence,
+                "arousal": arousal,
+                "ts": item.get("t", int(time.time())),
+                "text": item.get("text", "")[:50]  # First 50 chars
             })
 
     direction = compute_emotional_direction(trajectory)
@@ -557,7 +586,7 @@ def get_emotion_arc(k: int = 10) -> dict:
         return {"trajectory": [], "direction": "unknown", "summary": "No emotion history"}
 
     # Create readable summary
-    emotions = [t["label"] for t in trajectory]
+    emotions = [t["primary_label"] for t in trajectory]
     summary = " → ".join(emotions[-5:]) if len(emotions) >= 5 else " → ".join(emotions)
 
     return {

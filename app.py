@@ -3,12 +3,19 @@
 
 import json
 import asyncio
+import os
 from dotenv import load_dotenv
 import gradio as gr
+import plotly.graph_objects as go
 
 from utils.mcp_client import MCPMux
 
 load_dotenv()
+
+# Clear memory on startup for fresh conversations
+if os.path.exists("memory.json"):
+    os.remove("memory.json")
+    print("🧹 Cleared previous memory for fresh start")
 
 mux = MCPMux()
 _event_loop = None
@@ -35,6 +42,100 @@ def _parse_json_maybe(s: str):
         return json.loads(s)
     except Exception:
         return None
+
+def create_emotion_plot(emotion_arc):
+    """Create a Plotly scatter plot showing emotions on valence/arousal grid."""
+    if not emotion_arc or not emotion_arc.get("trajectory"):
+        # Empty plot with quadrant labels
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=[0], y=[0.5], mode='markers',
+                                marker=dict(size=1, color='lightgray'),
+                                showlegend=False))
+
+        # Add quadrant labels
+        fig.add_annotation(x=0.5, y=0.75, text="Excited", showarrow=False,
+                          font=dict(size=10, color='gray'))
+        fig.add_annotation(x=-0.5, y=0.75, text="Anxious", showarrow=False,
+                          font=dict(size=10, color='gray'))
+        fig.add_annotation(x=0.5, y=0.25, text="Calm", showarrow=False,
+                          font=dict(size=10, color='gray'))
+        fig.add_annotation(x=-0.5, y=0.25, text="Sad", showarrow=False,
+                          font=dict(size=10, color='gray'))
+
+        fig.update_layout(
+            title="Emotion Trajectory (Valence × Arousal)",
+            xaxis=dict(title="Valence", range=[-1, 1], zeroline=True),
+            yaxis=dict(title="Arousal", range=[0, 1], zeroline=False),
+            height=400,
+            showlegend=False
+        )
+        return fig
+
+    trajectory = emotion_arc.get("trajectory", [])
+
+    # Extract valence and arousal from trajectory
+    x_vals = [item.get("valence", 0) for item in trajectory]
+    y_vals = [item.get("arousal", 0.5) for item in trajectory]
+    labels = [item.get("primary_label", "neutral") for item in trajectory]
+
+    # Color points from oldest (light) to newest (dark)
+    colors = list(range(len(x_vals)))
+
+    fig = go.Figure()
+
+    # Add trajectory line
+    if len(x_vals) > 1:
+        fig.add_trace(go.Scatter(
+            x=x_vals, y=y_vals,
+            mode='lines',
+            line=dict(color='lightblue', width=1, dash='dot'),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+
+    # Add emotion points
+    fig.add_trace(go.Scatter(
+        x=x_vals, y=y_vals,
+        mode='markers+text',
+        marker=dict(
+            size=12,
+            color=colors,
+            colorscale='Blues',
+            showscale=False,
+            line=dict(width=1, color='white')
+        ),
+        text=labels,
+        textposition='top center',
+        textfont=dict(size=8),
+        hovertemplate='<b>%{text}</b><br>Valence: %{x:.2f}<br>Arousal: %{y:.2f}<extra></extra>',
+        showlegend=False
+    ))
+
+    # Add quadrant labels
+    fig.add_annotation(x=0.5, y=0.75, text="Excited", showarrow=False,
+                      font=dict(size=10, color='lightgray'))
+    fig.add_annotation(x=-0.5, y=0.75, text="Anxious", showarrow=False,
+                      font=dict(size=10, color='lightgray'))
+    fig.add_annotation(x=0.5, y=0.25, text="Calm", showarrow=False,
+                      font=dict(size=10, color='lightgray'))
+    fig.add_annotation(x=-0.5, y=0.25, text="Sad", showarrow=False,
+                      font=dict(size=10, color='lightgray'))
+
+    # Add quadrant lines
+    fig.add_hline(y=0.5, line=dict(color='lightgray', width=1, dash='dash'))
+    fig.add_vline(x=0, line=dict(color='lightgray', width=1, dash='dash'))
+
+    direction = emotion_arc.get("direction", "stable")
+    fig.update_layout(
+        title=f"Emotion Trajectory: {direction}",
+        xaxis=dict(title="Valence (negative ← → positive)", range=[-1, 1]),
+        yaxis=dict(title="Arousal (calm ← → intense)", range=[0, 1]),
+        height=400,
+        showlegend=False,
+        plot_bgcolor='#fafafa'
+    )
+
+    return fig
 
 def chat(user_msg: str, messages: list[dict] | None):
     messages = messages or []
@@ -63,14 +164,14 @@ def chat(user_msg: str, messages: list[dict] | None):
 
     # Get emotion arc trajectory for context
     emotion_arc = None
-    arc_str = ""
+    arc_str = "📊 *Emotion arc will appear here*"
     try:
         arc_raw = _run(mux.call("get_emotion_arc", {"k": 10}))
         emotion_arc = _parse_json_maybe(arc_raw) if isinstance(arc_raw, str) else arc_raw
-        if isinstance(emotion_arc, dict):
-            trajectory = emotion_arc.get("trajectory", [])
+        if isinstance(emotion_arc, dict) and emotion_arc.get("trajectory"):
             direction = emotion_arc.get("direction", "stable")
-            arc_str = f"[emotion_arc: {direction}, trajectory_length={len(trajectory)}]"
+            summary = emotion_arc.get("summary", "")
+            arc_str = f"**📊 Emotion Arc: {direction}**\n\n{summary}"
     except Exception as e:
         print(f"⚠️ memory.get_emotion_arc failed: {e}")
 
@@ -89,15 +190,26 @@ def chat(user_msg: str, messages: list[dict] | None):
         reply = f"👻 (client-reflection error) {e}\nI still hear you: {user_msg}"
 
     messages.append({"role": "assistant", "content": reply})
-    return messages, messages, "", arc_str
+
+    # Create emotion plot
+    emotion_plot = create_emotion_plot(emotion_arc)
+
+    return messages, messages, "", arc_str, emotion_plot
 
 with gr.Blocks(title="Ghost Malone") as demo:
     gr.Markdown("## 👻 Ghost Malone\n*A calm AI that listens before it talks.*")
-    chatbot = gr.Chatbot(type="messages", height=420)
-    emotion_arc_md = gr.Markdown("📊 *Emotion arc will appear here*")
+
+    with gr.Row():
+        with gr.Column(scale=2):
+            chatbot = gr.Chatbot(type="messages", height=500)
+            emotion_arc_md = gr.Markdown("📊 *Emotion arc will appear here*")
+
+        with gr.Column(scale=1):
+            emotion_plot = gr.Plot(label="Emotion Trajectory")
+
     state = gr.State([])
     msg = gr.Textbox(placeholder="Tell Ghost Malone what's on your mind...", label="Message")
-    msg.submit(chat, [msg, state], [chatbot, state, msg, emotion_arc_md])
+    msg.submit(chat, [msg, state], [chatbot, state, msg, emotion_arc_md, emotion_plot])
 
     with gr.Accordion("🧰 MCP Tools (manual)", open=False):
         tool_name = gr.Textbox(label="Tool name (e.g., analyze, remember)")

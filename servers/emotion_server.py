@@ -111,10 +111,10 @@ app = FastMCP("emotion-server")
 # Lexicons & heuristics
 # ---------------------------
 EMO_LEX = {
-    "happy":   r"\b(happy|grateful|excited|joy(?:ful)?|delighted|content|optimistic|glad|thrilled|yay)\b",
-    "sad":     r"\b(sad|down|depress(?:ed|ing)|cry(?:ing)?|lonely|upset|miserable|heartbroken)\b",
-    "angry":   r"\b(angry|mad|furious|irritated|pissed|annoyed|resentful|rage|hate)\b",
-    "anxious": r"\b(worried|anxious|nervous|stressed|overwhelmed|scared|uneasy|tense|on edge)\b",
+    "happy":   r"\b(happy|grateful|excited|joy(?:ful)?|delighted|content|optimistic|glad|thrilled|yay|better|good|great|fine)\b",
+    "sad":     r"\b(sad|down|depress(?:ed|ing)|cry(?:ing)?|lonely|upset|miserable|heartbroken|devastat(?:ed|ing))\b",
+    "angry":   r"\b(angry|mad|furious|irritated|pissed|pissy|annoyed|resentful|rage|hate|infuriat(?:ed|ing)|frustrat(?:ed|ing)|boiling)\b",
+    "anxious": r"\b(worried|anxious|nervous|stressed|overwhelmed|scared|uneasy|tense|on edge|freaking out)\b",
     "tired":   r"\b(tired|exhaust(?:ed|ing)|drained|burnt(?:\s*out)?|sleepy|fatigued|worn out)\b",
     "love":    r"\b(love|affection|caring|fond|admire|cherish|adore)\b",
     "fear":    r"\b(afraid|fear|terrified|panic(?:ky|ked)?|panicked|shaken|petrified)\b",
