@@ -353,7 +353,7 @@ def _tfidf_rank(query: str, docs: List[Tuple[str,str,str,int]], k: int = 5):
 # Tools (API)
 # ---------------------------
 
-@tool
+@app.tool()
 def remember(text: str, meta: dict | None = None) -> dict:
     store = _load()
     item = {"t": int(time.time()), "text": text, "meta": meta or {}}
@@ -362,7 +362,7 @@ def remember(text: str, meta: dict | None = None) -> dict:
     _save(store)
     return {"ok": True, "stm_size": len(store["stm"]), "id": item["id"]}
 
-@tool
+@app.tool()
 def remember_event(event: dict, promote: bool = True) -> dict:
     store = _load()
     ev = dict(event or {})
@@ -388,13 +388,13 @@ def remember_event(event: dict, promote: bool = True) -> dict:
     return {"ok": True, "salience": ev["salience"], "id": stm_item["id"],
             "sizes": {"stm": len(store["stm"]), "episodes": len(store["episodes"]), "facts": len(store["facts"])}}
 
-@tool
+@app.tool()
 def recall(k: int = 3) -> dict:
     store = _load()
     items = store.get("stm", [])[-k:]
     return {"items": items}
 
-@tool
+@app.tool()
 def recall_episodes(k: int = 5, topic: str | None = None) -> dict:
     store = _load()
     eps = store.get("episodes", [])
@@ -402,12 +402,12 @@ def recall_episodes(k: int = 5, topic: str | None = None) -> dict:
         eps = [e for e in eps if topic in (e.get("topics") or [])]
     return {"items": eps[-k:]}
 
-@tool
+@app.tool()
 def recall_facts() -> dict:
     store = _load()
     return {"facts": store.get("facts", [])}
 
-@tool
+@app.tool()
 def reflect() -> dict:
     store = _load()
     eps = store.get("episodes", [])
@@ -429,7 +429,7 @@ def reflect() -> dict:
     _save(store)
     return {"ok": True, "updated": len(new_facts), "facts": store["facts"]}
 
-@tool
+@app.tool()
 def prune(before_ts: int | None = None) -> dict:
     store = _load()
     stm = store.get("stm", [])
@@ -444,7 +444,7 @@ def prune(before_ts: int | None = None) -> dict:
 
 # -------- NEW: search / get / delete / list --------
 
-@tool
+@app.tool()
 def search(query: str, tier: str | None = None, k: int = 5) -> dict:
     """
     TF-IDF search across memory.
@@ -461,7 +461,7 @@ def search(query: str, tier: str | None = None, k: int = 5) -> dict:
                for (_id, _tier, text, ts, score, matched) in ranked]
     return {"results": results}
 
-@tool
+@app.tool()
 def get(item_id: str) -> dict:
     """
     Fetch a single item by id from any tier.
@@ -478,7 +478,7 @@ def get(item_id: str) -> dict:
             return {"tier": "facts", "item": f}
     return {"tier": None, "item": None}
 
-@tool
+@app.tool()
 def delete_by_id(item_id: str, tier: str | None = None) -> dict:
     """
     Delete a single item by id. If tier is None, searches all tiers.
@@ -503,7 +503,7 @@ def delete_by_id(item_id: str, tier: str | None = None) -> dict:
         return {"ok": True, "removed_from": removed_from}
     return {"ok": False, "removed_from": None}
 
-@tool
+@app.tool()
 def list_items(tier: str, k: int = 10) -> dict:
     """
     List last k items in a tier.
@@ -520,7 +520,7 @@ def list_items(tier: str, k: int = 10) -> dict:
 
 # -------- Diagnostics --------
 
-@tool
+@app.tool()
 def stats() -> dict:
     s = _load()
     return {
@@ -532,7 +532,7 @@ def stats() -> dict:
         "version": s.get("meta", {}).get("version", "1.3.0"),
     }
 
-@tool
+@app.tool()
 def health() -> dict:
     try:
         s = _load()
@@ -540,11 +540,11 @@ def health() -> dict:
     except Exception as e:
         return {"status": "error", "error": str(e), "time": time.time()}
 
-@tool
+@app.tool()
 def version() -> dict:
     return {"name": "memory-server", "version": "1.3.0", "tiers": ["stm","episodes","facts"], "file": FILE}
 
-@tool
+@app.tool()
 def get_emotion_arc(k: int = 10) -> dict:
     """
     Get the emotion trajectory (arc) for the last k events.

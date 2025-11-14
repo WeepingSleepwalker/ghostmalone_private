@@ -11,6 +11,7 @@ from utils.mcp_client import MCPMux
 load_dotenv()
 
 mux = MCPMux()
+_event_loop = None
 
 async def _boot_mcp():
     """Bootstrap MCP connections to emotion, memory, and reflection servers."""
@@ -20,10 +21,14 @@ async def _boot_mcp():
     tools = await mux.list_all_tools()
     print(f"🧰 MCP tools discovered: {tools}")
 
-asyncio.get_event_loop().run_until_complete(_boot_mcp())
+# Create a persistent event loop for MCP
+_event_loop = asyncio.new_event_loop()
+asyncio.set_event_loop(_event_loop)
+_event_loop.run_until_complete(_boot_mcp())
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run async coroutine in the persistent event loop."""
+    return _event_loop.run_until_complete(coro)
 
 def _parse_json_maybe(s: str):
     try:
@@ -39,17 +44,22 @@ def chat(user_msg: str, messages: list[dict] | None):
     emo_meta = {"tone": tone, "labels": ["neutral"], "valence": 0.0, "arousal": 0.5}
     try:
         emo_raw = _run(mux.call("analyze", {"text": user_msg}))
+        print(f"DEBUG emotion.analyze raw response: {emo_raw}")
         parsed = _parse_json_maybe(emo_raw) if isinstance(emo_raw, str) else emo_raw
         if isinstance(parsed, dict):
             emo_meta.update(parsed)
             tone = parsed.get("tone", tone)
     except Exception as e:
-        print(f"⚠️ emotion.analyze failed: {e}")
+        print(f"⚠️ emotion.analyze failed: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
 
     try:
         _ = _run(mux.call("remember", {"text": user_msg, "meta": emo_meta}))
     except Exception as e:
-        print(f"⚠️ memory.remember failed: {e}")
+        print(f"⚠️ memory.remember failed: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Get emotion arc trajectory for context
     emotion_arc = None
@@ -70,7 +80,7 @@ def chat(user_msg: str, messages: list[dict] | None):
             "context": messages[:-1],
             "tone": tone,
             "emotion_arc": emotion_arc or {},
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "claude-sonnet-4-5",
             "max_tokens": 200
         }))
         gen = _parse_json_maybe(gen_raw) if isinstance(gen_raw, str) else gen_raw

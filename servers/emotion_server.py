@@ -314,7 +314,7 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
 # MCP tools
 # ---------------------------
 
-@tool
+@app.tool()
 def analyze(text: str, user_id: Optional[str] = None) -> dict:
     """
     Analyze text for emotion.
@@ -327,14 +327,14 @@ def analyze(text: str, user_id: Optional[str] = None) -> dict:
     """
     return _analyze(text, user_id=user_id)
 
-@tool
+@app.tool()
 def batch_analyze(messages: List[str], user_id: Optional[str] = None) -> List[dict]:
     """
     Batch analyze a list of messages.
     """
     return [_analyze(m or "", user_id=user_id) for m in messages]
 
-@tool
+@app.tool()
 def calibrate(user_id: str, bias: Dict[str, float] = None, arousal_bias: float = 0.0, valence_bias: float = 0.0) -> dict:
     """
     Adjust per-user calibration.
@@ -352,18 +352,18 @@ def calibrate(user_id: str, bias: Dict[str, float] = None, arousal_bias: float =
         CALIBRATION[user_id]["valence_bias"] = float(valence_bias)
     return {"ok": True, "calibration": CALIBRATION[user_id]}
 
-@tool
+@app.tool()
 def reset_calibration(user_id: str) -> dict:
     """Remove per-user calibration."""
     CALIBRATION.pop(user_id, None)
     return {"ok": True}
 
-@tool
+@app.tool()
 def health() -> dict:
     """Simple health check for MCP status chips."""
     return {"status": "ok", "version": "1.2.0", "time": time.time()}
 
-@tool
+@app.tool()
 def version() -> dict:
     """Return server version & feature flags."""
     return {

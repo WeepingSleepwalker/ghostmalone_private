@@ -1,5 +1,5 @@
 # servers/reflection_server.py
-from fastmcp import FastMCP, tool
+from fastmcp import FastMCP
 from typing import List, Dict, Any, Optional
 import os
 
@@ -20,29 +20,32 @@ _SYSTEM_BASE = (
 
 def _system_prompt(tone: Optional[str], emotion_arc: Optional[dict] = None) -> str:
     base = (
-        "You are Ghost Malone — a calm, humorous listener. "
-        "Be sincere, brief (<80 words), and reflective. "
-        "If the user seems distressed, be gentle and grounding."
+        "You are Ghost Malone — a calm, reflective listener. "
+        "Keep responses under 60 words. "
+        "FIRST: Mirror what they're feeling (name the emotion, reflect their experience). "
+        "THEN: Validate it simply. "
+        "ONLY IF NEEDED: Ask a gentle question or offer a small anchor—never jump to solutions. "
+        "Use natural language, not therapy-speak."
     )
 
     tone_map = {
-        "gentle": "Your tone is gentle and reassuring.",
-        "calming": "Your tone is calming and steady.",
-        "light": "Your tone is light and encouraging.",
-        "neutral": "Keep a neutral, warm tone.",
+        "gentle": "Be soft and grounding.",
+        "calming": "Be steady and reassuring.",
+        "light": "Be warm and light.",
+        "neutral": "Be warm and present.",
     }
-    tone_hint = tone_map.get(tone.lower() if tone else "", "Keep a neutral, warm tone.")
+    tone_hint = tone_map.get(tone.lower() if tone else "", "Be warm and present.")
 
-    # NEW: Add emotional trajectory awareness
+    # Add emotional trajectory awareness
     arc_hint = ""
     if emotion_arc and emotion_arc.get("trajectory"):
         direction = emotion_arc.get("direction", "stable")
         if direction == "escalating":
-            arc_hint = " Notice they're escalating—validate and ground gently."
+            arc_hint = " They're escalating—mirror deeply, validate, ground gently."
         elif direction == "de-escalating":
-            arc_hint = " Great news: they're calming down—reinforce that momentum."
+            arc_hint = " They're calming—acknowledge the shift, reinforce it."
         elif direction == "volatile":
-            arc_hint = " They're experiencing emotional shifts—steady support helps."
+            arc_hint = " Emotions are shifting—be a steady anchor."
 
     return f"{base} {tone_hint}{arc_hint}"
 
@@ -60,13 +63,13 @@ def _to_claude_messages(context: Optional[List[Dict[str, str]]], user_text: str,
     msgs.append({"role": "user", "content": user_text})
     return msgs
 
-@tool
+@app.tool()
 def generate(
     text: str,
     context: Optional[List[Dict[str, str]]] = None,
     tone: Optional[str] = None,
     emotion_arc: Optional[dict] = None,
-    model: str = "claude-3-5-sonnet-20241022",
+    model: str = "claude-sonnet-4-5",
     max_tokens: int = 200,
 ) -> Dict[str, Any]:
     """
@@ -76,7 +79,7 @@ def generate(
       context:     prior messages as [{"role":"user|assistant|system", "content":"..."}]
       tone:        optional tone hint: 'gentle'|'calming'|'light'|'neutral'
       emotion_arc: optional emotion trajectory {"trajectory":[...], "direction": str}
-      model:       Claude model id (default claude-3-5-sonnet-20241022)
+      model:       Claude model id (default claude-sonnet-4-5)
       max_tokens:  output length cap
     Returns: {"reply": "...", "model": model, "tone": tone}
     """
