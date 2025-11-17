@@ -51,6 +51,7 @@
 #     app.run()  # serves MCP over stdio
 # servers/emotion_server.py
 from __future__ import annotations
+
 # ---- FastMCP import shim (works across versions) ----
 # Ensures: FastMCP is imported and `@tool` is ALWAYS a callable decorator.
 from typing import Callable, Any
@@ -63,7 +64,7 @@ except Exception as e:
 _tool_candidate: Any = None
 # Try common locations
 try:
-    from fastmcp import tool as _tool_candidate       # newer API: function
+    from fastmcp import tool as _tool_candidate  # newer API: function
 except Exception:
     try:
         from fastmcp.tools import tool as _tool_candidate  # older API: function
@@ -76,6 +77,7 @@ if _tool_candidate is not None and not callable(_tool_candidate):
         _tool_candidate = _tool_candidate.tool  # some builds expose module.tools.tool
     except Exception:
         _tool_candidate = None
+
 
 def tool(*dargs, **dkwargs):
     """
@@ -98,7 +100,10 @@ def tool(*dargs, **dkwargs):
     # Used as @tool(...)
     def _noop_decorator(fn):
         return fn
+
     return _noop_decorator
+
+
 # ---- end shim ----
 
 
@@ -111,24 +116,24 @@ app = FastMCP("emotion-server")
 # Lexicons & heuristics
 # ---------------------------
 EMO_LEX = {
-    "happy":   r"\b(happy|grateful|excited|joy(?:ful)?|delighted|content|optimistic|glad|thrilled|yay|better|good|great|fine)\b",
-    "sad":     r"\b(sad|down|depress(?:ed|ing)|cry(?:ing)?|lonely|upset|miserable|heartbroken|devastat(?:ed|ing))\b",
-    "angry":   r"\b(angry|mad|furious|irritated|pissed|pissy|annoyed|resentful|rage|hate|infuriat(?:ed|ing)|frustrat(?:ed|ing)|boiling)\b",
+    "happy": r"\b(happy|grateful|excited|joy(?:ful)?|delighted|content|optimistic|glad|thrilled|yay|better|good|great|fine)\b",
+    "sad": r"\b(sad|down|depress(?:ed|ing)|cry(?:ing)?|lonely|upset|miserable|heartbroken|devastat(?:ed|ing))\b",
+    "angry": r"\b(angry|mad|furious|irritated|pissed|pissy|annoyed|resentful|rage|hate|infuriat(?:ed|ing)|frustrat(?:ed|ing)|boiling)\b",
     "anxious": r"\b(worried|anxious|nervous|stressed|overwhelmed|scared|uneasy|tense|on edge|freaking out)\b",
-    "tired":   r"\b(tired|exhaust(?:ed|ing)|drained|burnt(?:\s*out)?|sleepy|fatigued|worn out)\b",
-    "love":    r"\b(love|affection|caring|fond|admire|cherish|adore)\b",
-    "fear":    r"\b(afraid|fear|terrified|panic(?:ky|ked)?|panicked|shaken|petrified)\b",
+    "tired": r"\b(tired|exhaust(?:ed|ing)|drained|burnt(?:\s*out)?|sleepy|fatigued|worn out)\b",
+    "love": r"\b(love|affection|caring|fond|admire|cherish|adore)\b",
+    "fear": r"\b(afraid|fear|terrified|panic(?:ky|ked)?|panicked|shaken|petrified)\b",
 }
 
 # Emojis contribute signals even without words
 EMOJI_SIGNAL = {
-    "happy": ["😀","😄","😊","🙂","😁","🥳","✨"],
-    "sad":   ["😢","😭","😞","😔","☹️"],
-    "angry": ["😠","😡","🤬","💢"],
-    "anxious":["😰","😱","😬","😟","😧"],
-    "tired": ["🥱","😪","😴"],
-    "love":  ["❤️","💖","💕","😍","🤍","💗","💓","😘"],
-    "fear":  ["🫣","😨","😱","👀"],
+    "happy": ["😀", "😄", "😊", "🙂", "😁", "🥳", "✨"],
+    "sad": ["😢", "😭", "😞", "😔", "☹️"],
+    "angry": ["😠", "😡", "🤬", "💢"],
+    "anxious": ["😰", "😱", "😬", "😟", "😧"],
+    "tired": ["🥱", "😪", "😴"],
+    "love": ["❤️", "💖", "💕", "😍", "🤍", "💗", "💓", "😘"],
+    "fear": ["🫣", "😨", "😱", "👀"],
 }
 
 NEGATORS = r"\b(no|not|never|hardly|barely|scarcely|isn['’]t|aren['’]t|can['’]t|don['’]t|doesn['’]t|won['’]t|without)\b"
@@ -137,17 +142,28 @@ INTENSIFIERS = {
     r"\b(kinda|kind of|somewhat|slightly|a bit|a little)\b": 0.75,
 }
 SARCASM_CUES = [
-    r"\byeah right\b", r"\bsure\b", r"\".+\"", r"/s\b", r"\bokayyy+\b", r"\blol\b(?!\w)"
+    r"\byeah right\b",
+    r"\bsure\b",
+    r"\".+\"",
+    r"/s\b",
+    r"\bokayyy+\b",
+    r"\blol\b(?!\w)",
 ]
+
 
 # Tone map by quadrant
 # arousal high/low × valence pos/neg
 def quad_tone(valence: float, arousal: float) -> str:
-    if arousal >= 0.6 and valence >= 0.1:  return "excited"
-    if arousal >= 0.6 and valence < -0.1:  return "concerned"
-    if arousal <  0.6 and valence < -0.1:  return "gentle"
-    if arousal <  0.6 and valence >= 0.1:  return "calm"
+    if arousal >= 0.6 and valence >= 0.1:
+        return "excited"
+    if arousal >= 0.6 and valence < -0.1:
+        return "concerned"
+    if arousal < 0.6 and valence < -0.1:
+        return "gentle"
+    if arousal < 0.6 and valence >= 0.1:
+        return "calm"
     return "neutral"
+
 
 # ---------------------------
 # Utilities
@@ -157,12 +173,14 @@ _neg_pat = re.compile(NEGATORS, re.I)
 _int_pats = [(re.compile(p, re.I), w) for p, w in INTENSIFIERS.items()]
 _sarcasm = [re.compile(p, re.I) for p in SARCASM_CUES]
 
+
 def _emoji_hits(text: str) -> Dict[str, int]:
     hits = {k: 0 for k in EMO_LEX}
     for emo, arr in EMOJI_SIGNAL.items():
         for e in arr:
             hits[emo] += text.count(e)
     return hits
+
 
 def _intensity_multiplier(text: str) -> float:
     mult = 1.0
@@ -171,40 +189,61 @@ def _intensity_multiplier(text: str) -> float:
             mult *= w
     # Exclamation marks increase arousal a bit (cap effect)
     bangs = min(text.count("!"), 5)
-    mult *= (1.0 + 0.04 * bangs)
+    mult *= 1.0 + 0.04 * bangs
     # ALL CAPS word run nudges intensity
     if re.search(r"\b[A-Z]{3,}\b", text):
         mult *= 1.08
     return max(0.5, min(1.8, mult))
 
+
 def _negation_factor(text: str, span_start: int) -> float:
     """
     Look 5 words (~40 chars) backwards for a negator.
     If present, invert or dampen signal.
+    Stop at clause boundaries (comma, period, semicolon) to avoid cross-clause negation.
     """
     window_start = max(0, span_start - 40)
     window = text[window_start:span_start]
+
+    # Stop at last clause boundary (comma, period, semicolon, colon)
+    # This prevents "not responded" from negating "nervous" in "not responded, I'm nervous"
+    last_boundary = max(
+        window.rfind(","), window.rfind("."), window.rfind(";"), window.rfind(":")
+    )
+    if last_boundary != -1:
+        # Only look after the last boundary
+        window = window[last_boundary + 1 :]
+
     if _neg_pat.search(window):
         return -0.7  # invert and dampen
     return 1.0
 
+
 def _sarcasm_penalty(text: str) -> float:
     return 0.85 if any(p.search(text) for p in _sarcasm) else 1.0
 
+
 def _softmax(d: Dict[str, float]) -> Dict[str, float]:
     xs = list(d.values())
-    if not xs: return d
+    if not xs:
+        return d
     m = max(xs)
     exps = [math.exp(x - m) for x in xs]
     s = sum(exps) or 1.0
     return {k: exps[i] / s for i, k in enumerate(d.keys())}
 
+
 # ---------------------------
 # Per-user calibration (in-memory)
 # ---------------------------
-CALIBRATION: Dict[str, Dict[str, float]] = {}  # user_id -> {bias_emo: float, arousal_bias: float, valence_bias: float}
+CALIBRATION: Dict[str, Dict[str, float]] = (
+    {}
+)  # user_id -> {bias_emo: float, arousal_bias: float, valence_bias: float}
 
-def _apply_calibration(user_id: Optional[str], emo_scores: Dict[str, float], valence: float, arousal: float):
+
+def _apply_calibration(
+    user_id: Optional[str], emo_scores: Dict[str, float], valence: float, arousal: float
+):
     if not user_id or user_id not in CALIBRATION:
         return emo_scores, valence, arousal
     calib = CALIBRATION[user_id]
@@ -216,6 +255,7 @@ def _apply_calibration(user_id: Optional[str], emo_scores: Dict[str, float], val
     valence += calib.get("valence_bias", 0.0) * 0.15
     arousal += calib.get("arousal_bias", 0.0) * 0.15
     return emo_scores, valence, arousal
+
 
 # ---------------------------
 # Core analysis
@@ -232,7 +272,7 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
         for m in pat.finditer(tl):
             factor = _negation_factor(tl, m.start())
             emo_scores[emo] += 1.0 * factor
-            spans[emo].append((m.start(), m.end(), tl[m.start():m.end()]))
+            spans[emo].append((m.start(), m.end(), tl[m.start() : m.end()]))
 
     # Emoji contributions
     e_hits = _emoji_hits(t)
@@ -240,24 +280,46 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
         if c:
             emo_scores[emo] += 0.6 * c
 
-    # Intensifiers / sarcasm / punctuation adjustments (global)
+    # Check for sarcasm - if detected, invert positive emotions
+    sarcasm_detected = any(p.search(tl) for p in _sarcasm)
+
+    if sarcasm_detected:
+        # Sarcasm inverts positive emotions to negative
+        # "yeah right, like they care" → anger/sadness, not love
+        happy_score = emo_scores["happy"]
+        love_score = emo_scores["love"]
+
+        if happy_score > 0 or love_score > 0:
+            # Transfer positive emotion scores to anger/sad
+            emo_scores["angry"] += happy_score * 0.8
+            emo_scores["sad"] += love_score * 0.8
+            emo_scores["happy"] = 0.0
+            emo_scores["love"] = 0.0
+
+    # Intensifiers / punctuation adjustments (global)
     intensity = _intensity_multiplier(t)
-    sarcasm_mult = _sarcasm_penalty(t)
 
     for emo in emo_scores:
-        emo_scores[emo] *= intensity * sarcasm_mult
+        emo_scores[emo] *= intensity
 
     # Map to valence/arousal
     pos = emo_scores["happy"] + emo_scores["love"]
-    neg = emo_scores["sad"] + emo_scores["fear"] + 0.9 * emo_scores["angry"] + 0.6 * emo_scores["anxious"]
+    neg = (
+        emo_scores["sad"]
+        + emo_scores["fear"]
+        + 0.9 * emo_scores["angry"]
+        + 0.6 * emo_scores["anxious"]
+    )
     valence = max(-1.0, min(1.0, round((pos - neg) * 0.4, 3)))
 
     base_arousal = 0.5
-    arousal = base_arousal \
-        + 0.12 * (emo_scores["angry"] > 0) \
-        + 0.08 * (emo_scores["anxious"] > 0) \
-        - 0.10 * (emo_scores["tired"] > 0) \
+    arousal = (
+        base_arousal
+        + 0.12 * (emo_scores["angry"] > 0)
+        + 0.08 * (emo_scores["anxious"] > 0)
+        - 0.10 * (emo_scores["tired"] > 0)
         + 0.02 * min(t.count("!"), 5)
+    )
 
     arousal = max(0.0, min(1.0, round(arousal, 3)))
 
@@ -268,7 +330,9 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
         top2 = sorted(emo_scores.items(), key=lambda kv: kv[1], reverse=True)[:2]
         if len(top2) == 2 and top2[1][1] > 0:
             ratio = top2[0][1] / (top2[1][1] + 1e-6)
-            consistency = max(0.0, min(1.0, (ratio - 1) / 3))  # >1 means some separation
+            consistency = max(
+                0.0, min(1.0, (ratio - 1) / 3)
+            )  # >1 means some separation
         elif len(top2) == 1:
             consistency = 0.6
     conf = max(0.0, min(1.0, 0.25 + 0.1 * hits + 0.5 * consistency))
@@ -288,11 +352,18 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
 
     # Explanations
     reasons = []
-    if intensity > 1.0: reasons.append(f"intensifiers x{intensity:.2f}")
-    if sarcasm_mult < 1.0: reasons.append("sarcasm cues detected")
-    if any(_neg_pat.search(tl[max(0,s-40):s]) for emo, spans_ in spans.items() for (s,_,_) in spans_):
+    if intensity > 1.0:
+        reasons.append(f"intensifiers x{intensity:.2f}")
+    if sarcasm_detected:
+        reasons.append("sarcasm inverted positive emotions")
+    if any(
+        _neg_pat.search(tl[max(0, s - 40) : s])
+        for emo, spans_ in spans.items()
+        for (s, _, _) in spans_
+    ):
         reasons.append("negation near emotion tokens")
-    if any(e_hits.values()): reasons.append("emoji signals")
+    if any(e_hits.values()):
+        reasons.append("emoji signals")
 
     labels_sorted = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)
     top_labels = [k for k, v in labels_sorted[:3] if v > 0.05] or ["neutral"]
@@ -310,9 +381,11 @@ def _analyze(text: str, user_id: Optional[str] = None) -> dict:
         "user_id": user_id,
     }
 
+
 # ---------------------------
 # MCP tools
 # ---------------------------
+
 
 @app.tool()
 def analyze(text: str, user_id: Optional[str] = None) -> dict:
@@ -327,6 +400,7 @@ def analyze(text: str, user_id: Optional[str] = None) -> dict:
     """
     return _analyze(text, user_id=user_id)
 
+
 @app.tool()
 def batch_analyze(messages: List[str], user_id: Optional[str] = None) -> List[dict]:
     """
@@ -334,8 +408,14 @@ def batch_analyze(messages: List[str], user_id: Optional[str] = None) -> List[di
     """
     return [_analyze(m or "", user_id=user_id) for m in messages]
 
+
 @app.tool()
-def calibrate(user_id: str, bias: Dict[str, float] = None, arousal_bias: float = 0.0, valence_bias: float = 0.0) -> dict:
+def calibrate(
+    user_id: str,
+    bias: Dict[str, float] = None,
+    arousal_bias: float = 0.0,
+    valence_bias: float = 0.0,
+) -> dict:
     """
     Adjust per-user calibration.
     - bias: e.g. {"anxious": -0.1, "love": 0.1}
@@ -352,16 +432,19 @@ def calibrate(user_id: str, bias: Dict[str, float] = None, arousal_bias: float =
         CALIBRATION[user_id]["valence_bias"] = float(valence_bias)
     return {"ok": True, "calibration": CALIBRATION[user_id]}
 
+
 @app.tool()
 def reset_calibration(user_id: str) -> dict:
     """Remove per-user calibration."""
     CALIBRATION.pop(user_id, None)
     return {"ok": True}
 
+
 @app.tool()
 def health() -> dict:
     """Simple health check for MCP status chips."""
     return {"status": "ok", "version": "1.2.0", "time": time.time()}
+
 
 @app.tool()
 def version() -> dict:
@@ -369,9 +452,18 @@ def version() -> dict:
     return {
         "name": "emotion-server",
         "version": "1.2.0",
-        "features": ["negation", "intensifiers", "emoji", "sarcasm", "confidence", "batch", "calibration"],
+        "features": [
+            "negation",
+            "intensifiers",
+            "emoji",
+            "sarcasm",
+            "confidence",
+            "batch",
+            "calibration",
+        ],
         "emotions": list(EMO_LEX.keys()),
     }
+
 
 if __name__ == "__main__":
     app.run()  # serves MCP over stdio

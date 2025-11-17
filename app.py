@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import gradio as gr
 import plotly.graph_objects as go
 
-from utils.mcp_client import MCPMux
+from utils.orchestrator import get_orchestrator
 
 load_dotenv()
 
@@ -17,31 +17,23 @@ if os.path.exists("memory.json"):
     os.remove("memory.json")
     print("🧹 Cleared previous memory for fresh start")
 
-mux = MCPMux()
 _event_loop = None
+_orchestrator = None
 
-async def _boot_mcp():
-    """Bootstrap MCP connections to emotion, memory, and reflection servers."""
-    await mux.connect_stdio("emotion", "python", args=["servers/emotion_server.py"])
-    await mux.connect_stdio("memory", "python", args=["servers/memory_server.py"])
-    await mux.connect_stdio("reflect", "python", args=["servers/reflection_server.py"])
-    tools = await mux.list_all_tools()
-    print(f"🧰 MCP tools discovered: {tools}")
+async def _boot_orchestrator():
+    """Bootstrap the orchestrator with all MCP servers."""
+    global _orchestrator
+    _orchestrator = await get_orchestrator()
+    print("🧰 Ghost Malone orchestrator initialized")
 
-# Create a persistent event loop for MCP
+# Create a persistent event loop
 _event_loop = asyncio.new_event_loop()
 asyncio.set_event_loop(_event_loop)
-_event_loop.run_until_complete(_boot_mcp())
+_event_loop.run_until_complete(_boot_orchestrator())
 
 def _run(coro):
     """Run async coroutine in the persistent event loop."""
     return _event_loop.run_until_complete(coro)
-
-def _parse_json_maybe(s: str):
-    try:
-        return json.loads(s)
-    except Exception:
-        return None
 
 def create_emotion_plot(emotion_arc):
     """Create a Plotly scatter plot showing emotions on valence/arousal grid."""
@@ -137,67 +129,105 @@ def create_emotion_plot(emotion_arc):
 
     return fig
 
-def chat(user_msg: str, messages: list[dict] | None):
+def chat(user_msg: str, messages: list[dict] | None, min_msgs: int, min_conf: float, min_arous: float):
     messages = messages or []
     messages.append({"role": "user", "content": user_msg})
 
-    tone = "neutral"
-    emo_meta = {"tone": tone, "labels": ["neutral"], "valence": 0.0, "arousal": 0.5}
+    # Show thinking indicator (must return 6 values: chatbot, state, msg, emotion_arc_md, plot, debug_panel)
+    thinking_msg = {"role": "assistant", "content": "👻 *Ghost Malone is listening...*"}
+    yield messages + [thinking_msg], messages, user_msg, "📊 *Analyzing emotions and needs...*", None, "🔍 DEBUG: Processing..."
+
+    # Use orchestrator for full pipeline with custom thresholds
     try:
-        emo_raw = _run(mux.call("analyze", {"text": user_msg}))
-        print(f"DEBUG emotion.analyze raw response: {emo_raw}")
-        parsed = _parse_json_maybe(emo_raw) if isinstance(emo_raw, str) else emo_raw
-        if isinstance(parsed, dict):
-            emo_meta.update(parsed)
-            tone = parsed.get("tone", tone)
+        result = _run(_orchestrator.process_message(
+            user_text=user_msg,
+            conversation_context=messages[:-1],
+            intervention_thresholds={
+                "min_messages": int(min_msgs),
+                "min_confidence": float(min_conf),
+                "min_arousal": float(min_arous)
+            }
+        ))
+
+        # Extract data from result
+        emotion = result.get("emotion", {})
+        inferred_needs = result.get("inferred_needs", [])
+        emotion_arc = result.get("emotion_arc", {})
+        reply = result.get("response", "👻 I'm here, listening...")
+
     except Exception as e:
-        print(f"⚠️ emotion.analyze failed: {type(e).__name__}: {e}")
+        print(f"⚠️ orchestrator.process_message failed: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
 
-    try:
-        _ = _run(mux.call("remember", {"text": user_msg, "meta": emo_meta}))
-    except Exception as e:
-        print(f"⚠️ memory.remember failed: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-
-    # Get emotion arc trajectory for context
-    emotion_arc = None
-    arc_str = "📊 *Emotion arc will appear here*"
-    try:
-        arc_raw = _run(mux.call("get_emotion_arc", {"k": 10}))
-        emotion_arc = _parse_json_maybe(arc_raw) if isinstance(arc_raw, str) else arc_raw
-        if isinstance(emotion_arc, dict) and emotion_arc.get("trajectory"):
-            direction = emotion_arc.get("direction", "stable")
-            summary = emotion_arc.get("summary", "")
-            arc_str = f"**📊 Emotion Arc: {direction}**\n\n{summary}"
-    except Exception as e:
-        print(f"⚠️ memory.get_emotion_arc failed: {e}")
-
-    try:
-        gen_raw = _run(mux.call("generate", {
-            "text": user_msg,
-            "context": messages[:-1],
-            "tone": tone,
-            "emotion_arc": emotion_arc or {},
-            "model": "claude-sonnet-4-5",
-            "max_tokens": 200
-        }))
-        gen = _parse_json_maybe(gen_raw) if isinstance(gen_raw, str) else gen_raw
-        reply = gen.get("reply") if isinstance(gen, dict) else str(gen_raw)
-    except Exception as e:
-        reply = f"👻 (client-reflection error) {e}\nI still hear you: {user_msg}"
+        emotion = {"tone": "neutral", "labels": ["neutral"], "valence": 0.0, "arousal": 0.5}
+        inferred_needs = []
+        emotion_arc = None
+        reply = f"� (processing error) I still hear you: {user_msg}"
 
     messages.append({"role": "assistant", "content": reply})
+
+    # Format emotion arc display
+    arc_str = "📊 *Emotion arc will appear here*"
+    if isinstance(emotion_arc, dict) and emotion_arc.get("trajectory"):
+        direction = emotion_arc.get("direction", "stable")
+        summary = emotion_arc.get("summary", "")
+        arc_str = f"**📊 Emotion Arc: {direction}**\n\n{summary}"
+
+    # Format needs display
+    needs_str = ""
+    if inferred_needs:
+        needs_list = [f"{n['icon']} **{n['label']}** ({int(n['confidence']*100)}%)" for n in inferred_needs]
+        needs_str = "\n\n**🎯 Detected Needs:**\n" + " | ".join(needs_list)
+
+    # Combine arc and needs
+    context_display = arc_str + needs_str
 
     # Create emotion plot
     emotion_plot = create_emotion_plot(emotion_arc)
 
-    return messages, messages, "", arc_str, emotion_plot
+    # Debug display for needs
+    debug_needs = ""
+    if inferred_needs:
+        debug_needs = "**🔍 DEBUG - Detected Needs:**\n\n"
+        for need in inferred_needs:
+            debug_needs += f"- {need['icon']} **{need['label']}** ({need['confidence']:.1%})\n"
+            debug_needs += f"  - Need type: `{need['need']}`\n"
+            if need.get('contexts'):
+                debug_needs += f"  - Contexts: {', '.join(need['contexts'])}\n"
+            if need.get('emotions'):
+                debug_needs += f"  - Emotions: {', '.join(need['emotions'])}\n"
+            debug_needs += "\n"
+    else:
+        debug_needs = "🔍 DEBUG: No needs detected"
+
+    # Final yield with complete response
+    yield messages, messages, "", context_display, emotion_plot, debug_needs
 
 with gr.Blocks(title="Ghost Malone") as demo:
     gr.Markdown("## 👻 Ghost Malone\n*A calm AI that listens before it talks.*")
+
+    # Intervention controls (SIMPLIFIED for demo)
+    gr.Markdown("### 💡 Intervention Controls (for tuning)")
+    with gr.Row():
+        min_messages = gr.Slider(
+            minimum=1, maximum=5, value=2, step=1,
+            label="Min Messages",
+            info="Wait this many messages before showing interventions"
+        )
+        min_confidence = gr.Slider(
+            minimum=0.5, maximum=1.0, value=0.70, step=0.05,
+            label="Min Confidence",
+            info="How sure we need to be about the detected need"
+        )
+        min_arousal = gr.Slider(
+            minimum=0.0, maximum=1.0, value=0.40, step=0.05,
+            label="Min Arousal",
+            info="How intense emotions need to be (0.4 = moderate)"
+        )
+
+    # Debug panel for needs detection
+    debug_panel = gr.Markdown("🔍 DEBUG: No needs detected", label="Needs Debug Info")
 
     with gr.Row():
         with gr.Column(scale=2):
@@ -209,7 +239,7 @@ with gr.Blocks(title="Ghost Malone") as demo:
 
     state = gr.State([])
     msg = gr.Textbox(placeholder="Tell Ghost Malone what's on your mind...", label="Message")
-    msg.submit(chat, [msg, state], [chatbot, state, msg, emotion_arc_md, emotion_plot])
+    msg.submit(chat, [msg, state, min_messages, min_confidence, min_arousal], [chatbot, state, msg, emotion_arc_md, emotion_plot, debug_panel])
 
     with gr.Accordion("🧰 MCP Tools (manual)", open=False):
         tool_name = gr.Textbox(label="Tool name (e.g., analyze, remember)")
@@ -223,7 +253,7 @@ with gr.Blocks(title="Ghost Malone") as demo:
                 messages.append({"role":"assistant","content":f"🛠️ Invalid JSON: {e}"})
                 return messages, messages
             try:
-                out = await mux.call(name, args)
+                out = await _orchestrator.mux.call(name, args)
                 messages.append({"role":"assistant","content":f"🛠️ `{name}` →\n{out}"})
             except Exception as e:
                 messages.append({"role":"assistant","content":f"🛠️ `{name}` error → {e}"})
