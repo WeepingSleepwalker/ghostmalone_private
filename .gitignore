@@ -43,13 +43,31 @@ ENV/
 .ipynb_checkpoints
 
 # Memory/Data files
-memory.json
+# memory.json - needed for HuggingFace Spaces
 *.db
 *.sqlite
 
 # Project planning (internal)
 HACKATHON_PLAN.md
 testing.md
+ARCHITECTURE.md
+30secReadMe.md
+5_happy_scenarios.md
+DEMO_SCRIPT.md
+DEPLOY.md
+MUSIC_AI_DAW.md
+NEEDS_FRAMEWORK.md
+SESSION_CONTEXT.md
+
+# Test files
+test_*.py
+validate_*.py
+real_world_test_cases.py
+
+# Scripts
+git_setup.sh
+commit_and_push.sh
+push_changes.sh
 
 # Logs
 *.log

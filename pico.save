@@ -1,0 +1,16 @@
+[USER]
+   |
+   v
+[Orchestrator]
+   |
+   v
+[Emotion Server] (~31ms)
+   |
+   v
+[Memory Server]  (~66ms)
+   |
+   v
+[Reflection Server] (heavy lift)
+   |
+   v
+[OUTPUT]

@@ -1,0 +1,397 @@
+"""
+Intervention Lexicon: Need-based actionable suggestions
+Maps psychological needs to concrete, evidence-based interventions.
+"""
+
+from typing import List, Dict
+
+# Intervention strategies for each need
+INTERVENTIONS = {
+    "autonomy": {
+        "label": "Autonomy/Control",
+        "icon": "⚖️",
+        "strategies": [
+            {
+                "action": "Set a boundary",
+                "prompt": "What would it sound like to say 'no' here?",
+                "context": "blocked, powerless, micromanaged",
+                "evidence": "Self-Determination Theory: autonomy is core psychological need",
+            },
+            {
+                "action": "Reclaim decision-making",
+                "prompt": "What's one choice that's yours to make right now?",
+                "context": "dismissed, underutilized",
+                "evidence": "Locus of control research",
+            },
+            {
+                "action": "Name what you need",
+                "prompt": "If you could ask for one thing to change, what would it be?",
+                "context": "powerless, micromanaged",
+                "evidence": "Assertiveness training principles",
+            },
+            {
+                "action": "Take one small action",
+                "prompt": "What's the smallest step you could take that's fully in your control?",
+                "context": "blocked, powerless",
+                "evidence": "Behavioral activation therapy",
+            },
+        ],
+    },
+    "connection": {
+        "label": "Connection/Belonging",
+        "icon": "🗣️",
+        "strategies": [
+            {
+                "action": "Text someone who's seen you at your worst",
+                "prompt": "Not the person you perform for - who actually knows your mess?",
+                "context": "isolated, rejected, misunderstood",
+                "evidence": "Social support research, attachment theory",
+            },
+            {
+                "action": "Voice memo instead of typing",
+                "prompt": "Sometimes hearing your own voice say it out loud hits different",
+                "context": "isolated, disconnected",
+                "evidence": "Expressive writing research, self-disclosure benefits",
+            },
+            {
+                "action": "Do your usual connection ritual",
+                "prompt": "Coffee? Walk? Game? Your body remembers what works even when your brain doesn't",
+                "context": "isolated, rejected",
+                "evidence": "Behavioral activation, habit-based connection",
+            },
+            {
+                "action": "Show up somewhere people know your face",
+                "prompt": "Even if you don't talk much - being seen counts",
+                "context": "isolated, disconnected",
+                "evidence": "Social presence research, third places theory",
+            },
+            {
+                "action": "Send the messy text",
+                "prompt": "Not the cleaned-up version - the real one. Someone can handle it.",
+                "context": "misunderstood, rejected",
+                "evidence": "Vulnerability research (Brené Brown), authentic relating",
+            },
+        ],
+    },
+    "security": {
+        "label": "Security/Clarity",
+        "icon": "🛡️",
+                "context": "isolated, disconnected",
+                "evidence": "Loneliness intervention research",
+            },
+            {
+                "action": "Ask for what you need",
+                "prompt": "What would it sound like to say 'I need you to...'?",
+                "context": "rejected, misunderstood",
+                "evidence": "Relationship research (Gottman)",
+            },
+        ],
+    },
+    "security": {
+        "label": "Security/Clarity",
+        "icon": "🛡️",
+        "strategies": [
+            {
+                "action": "Get more information",
+                "prompt": "What's one question that would help you feel more grounded?",
+                "context": "uncertain, unstable",
+                "evidence": "Information-seeking coping (Lazarus & Folkman)",
+            },
+            {
+                "action": "Make a backup plan",
+                "prompt": "If the worst happened, what would you do next?",
+                "context": "threatened, unstable, loss",
+                "evidence": "Cognitive-behavioral therapy, anxiety reduction",
+            },
+            {
+                "action": "Identify what you can control",
+                "prompt": "What's one thing that's yours to decide or influence?",
+                "context": "uncertain, threatened",
+                "evidence": "Control theory, stress management",
+            },
+            {
+                "action": "Ground in the present",
+                "prompt": "What's actually true right now, in this moment?",
+                "context": "threatened, uncertain",
+                "evidence": "Mindfulness-based interventions",
+            },
+            {
+                "action": "Reach out for support",
+                "prompt": "Who could you talk to about this uncertainty?",
+                "context": "threatened, uncertain, loss",
+                "evidence": "Social support buffering effect",
+            },
+        ],
+    },
+    "rest": {
+        "label": "Rest/Boundaries",
+        "icon": "🛌",
+        "strategies": [
+            {
+                "action": "Say 'no' to something",
+                "prompt": "What's one thing you could decline or delay?",
+                "context": "overwhelmed, exhausted, overextended",
+                "evidence": "Burnout prevention research",
+            },
+            {
+                "action": "Ask for help",
+                "prompt": "What's one thing someone else could take off your plate?",
+                "context": "overwhelmed, exhausted",
+                "evidence": "Social support, task delegation",
+            },
+            {
+                "action": "Set a boundary",
+                "prompt": "What boundary do you need to protect your energy?",
+                "context": "boundary_violated, overextended",
+                "evidence": "Boundary research, relationship psychology",
+            },
+            {
+                "action": "Take a real break",
+                "prompt": "When could you actually stop for 15 minutes today?",
+                "context": "exhausted, overwhelmed",
+                "evidence": "Recovery research, rest benefits",
+            },
+            {
+                "action": "Name what's draining you",
+                "prompt": "What's taking the most from you right now?",
+                "context": "exhausted, overextended",
+                "evidence": "Energy management, self-awareness",
+            },
+        ],
+    },
+    "recognition": {
+        "label": "Recognition/Value",
+        "icon": "✨",
+        "strategies": [
+            {
+                "action": "Acknowledge yourself",
+                "prompt": "What did you do well here, even if no one noticed?",
+                "context": "unappreciated, overlooked, inadequate",
+                "evidence": "Self-compassion research (Neff)",
+            },
+            {
+                "action": "Ask for feedback",
+                "prompt": "Who could you ask: 'How did you see that?'",
+                "context": "unappreciated, inadequate",
+                "evidence": "Feedback-seeking behavior research",
+            },
+            {
+                "action": "Share your contribution",
+                "prompt": "What's one thing you could make visible?",
+                "context": "overlooked, unappreciated",
+                "evidence": "Visibility in the workplace research",
+            },
+            {
+                "action": "Separate their view from your worth",
+                "prompt": "What do you know about your value, regardless of their reaction?",
+                "context": "criticized, inadequate",
+                "evidence": "Cognitive restructuring (CBT)",
+            },
+            {
+                "action": "Find recognition elsewhere",
+                "prompt": "Where else do people see your value?",
+                "context": "unappreciated, overlooked",
+                "evidence": "Multiple life domains, resilience research",
+            },
+        ],
+    },
+}
+
+
+def get_interventions(
+    need_type: str, contexts: List[str] = None, limit: int = 3
+) -> List[Dict]:
+    """
+    Get contextually appropriate interventions for a detected need.
+
+    Args:
+        need_type: One of autonomy, connection, security, rest, recognition
+        contexts: List of detected contexts (e.g., ["isolated", "rejected"])
+        limit: Maximum number of interventions to return
+
+    Returns:
+        List of intervention dicts with action, prompt, context, evidence
+    """
+    if need_type not in INTERVENTIONS:
+        return []
+
+    strategies = INTERVENTIONS[need_type]["strategies"]
+
+    # If contexts provided, prioritize matching interventions
+    if contexts:
+        scored_strategies = []
+        for strategy in strategies:
+            # Count how many user contexts match this strategy's contexts
+            strategy_contexts = set(strategy["context"].split(", "))
+            user_contexts = set(contexts)
+            matches = len(strategy_contexts & user_contexts)
+            scored_strategies.append((matches, strategy))
+
+        # Sort by match count (descending), then take top N
+        scored_strategies.sort(key=lambda x: x[0], reverse=True)
+        return [s[1] for s in scored_strategies[:limit]]
+
+    # No contexts - return first N strategies
+    return strategies[:limit]
+
+
+def should_show_interventions(
+    confidence: float,
+    message_count: int,
+    emotional_intensity: float = None,
+    min_messages: int = 2,  # Simplified: just wait one exchange
+    min_confidence: float = 0.70,  # Simplified: lower bar
+    min_arousal: float = 0.40,  # Simplified: catch more cases
+) -> bool:
+    """
+    SIMPLIFIED for demo: Show interventions when there's a clear need.
+
+    Args:
+        confidence: Confidence in the detected need (0-1)
+        message_count: Number of messages in conversation
+        emotional_intensity: Arousal level (0-1)
+        min_messages: Minimum messages (default: 2)
+        min_confidence: Minimum confidence (default: 0.70)
+        min_arousal: Minimum arousal (default: 0.40)
+
+    Returns:
+        True if interventions should be displayed
+    """
+    # Simple checks - if there's a strong need and emotions, show help
+    if message_count < min_messages:
+        return False
+
+    if confidence < min_confidence:
+        return False
+
+    if emotional_intensity is not None and emotional_intensity < min_arousal:
+        return False
+
+    return True
+
+
+def format_interventions(
+    need_type: str,
+    interventions: List[Dict],
+    confidence: float,
+    emotion_arc: Dict = None,
+    user_text: str = None,
+) -> str:
+    """
+    Format interventions for display in the UI.
+    Uses memory/emotion arc to personalize suggestions when available.
+
+    Args:
+        need_type: The detected need type
+        interventions: List of intervention dicts
+        confidence: Confidence in the need detection
+        emotion_arc: Optional emotion trajectory from memory
+        user_text: Optional current user message for context extraction
+
+    Returns:
+        Formatted markdown string with personalized interventions
+    """
+    if not interventions:
+        return ""
+
+    need_info = INTERVENTIONS[need_type]
+    icon = need_info["icon"]
+    label = need_info["label"]
+
+    output = f"\n\n---\n\n"
+    output += f"💡 **Based on your need for {icon} {label}:**\n\n"
+
+    # Extract names/places from current text for personalization
+    entities = _extract_entities(user_text) if user_text else {}
+
+    # Check if there's a pattern in emotion arc
+    pattern_insight = _analyze_emotion_pattern(emotion_arc) if emotion_arc else None
+
+    for i, intervention in enumerate(interventions):
+        # Personalize the prompt if we have context
+        prompt = intervention["prompt"]
+
+        # Add memory-based personalization
+        if pattern_insight and i == 0:  # First intervention gets pattern insight
+            output += f"• **{intervention['action']}**  \n"
+            output += f"  ↳ *{pattern_insight}*\n\n"
+        elif entities.get("person") and "reach out" in intervention["action"].lower():
+            # Personalize "reach out" with mentioned person
+            person = entities["person"][0]
+            output += f"• **{intervention['action']}**  \n"
+            output += f"  ↳ *Could {person} be someone to talk to about this?*\n\n"
+        elif entities.get("place") and "connection" in need_type:
+            # Reference places where user felt better
+            place = entities["place"][0]
+            output += f"• **{intervention['action']}**  \n"
+            output += f"  ↳ *What about {place} helped you feel more connected?*\n\n"
+        else:
+            # Use default prompt
+            output += f"• **{intervention['action']}**  \n"
+            output += f"  ↳ *{prompt}*\n\n"
+
+    output += "*These are just ideas — only you know what fits right now.*"
+
+    return output
+
+
+def _extract_entities(text: str) -> Dict[str, List[str]]:
+    """
+    Simple entity extraction - finds names, places mentioned.
+    (Could be enhanced with NER later, but regex works for now)
+    """
+    import re
+
+    entities = {"person": [], "place": []}
+
+    if not text:
+        return entities
+
+    # Look for capitalized words that might be names
+    # Pattern: capitalized word not at start of sentence
+    words = text.split()
+    for i, word in enumerate(words):
+        # Skip first word and common words
+        if i == 0 or word.lower() in ["i", "the", "a", "an", "my", "her", "his"]:
+            continue
+        # Check if capitalized and looks like a name
+        if word[0].isupper() and len(word) > 2:
+            entities["person"].append(word.rstrip(".,!?"))
+
+    return entities
+
+
+def _analyze_emotion_pattern(emotion_arc: Dict) -> str:
+    """
+    Analyze emotion trajectory for patterns and insights.
+    Returns a personalized prompt based on what we've seen.
+    """
+    trajectory = emotion_arc.get("trajectory", [])
+
+    if not trajectory or len(trajectory) < 2:
+        return None
+
+    # Check if emotions are getting worse
+    recent_valence = [e.get("valence", 0) for e in trajectory[-3:]]
+    if len(recent_valence) >= 2:
+        if all(
+            recent_valence[i] < recent_valence[i - 1]
+            for i in range(1, len(recent_valence))
+        ):
+            return "Your emotions have been getting heavier - what could help you shift this pattern?"
+
+    # Check if stuck in same emotion
+    recent_labels = [e.get("primary_label") for e in trajectory[-3:]]
+    if len(set(recent_labels)) == 1:
+        emotion = recent_labels[0]
+        if emotion in ["anxious", "sad"]:
+            return f"You've been feeling {emotion} for a while now - what's one thing that might give you a break from this?"
+
+    # Check if there was a better moment
+    best_valence = max(e.get("valence", -1) for e in trajectory)
+    if best_valence > 0:
+        best_moment = [e for e in trajectory if e.get("valence") == best_valence][0]
+        snippet = best_moment.get("text", "")[:50]
+        return f'Earlier when you said "{snippet}..." you seemed lighter - what was different then?'
+
+    return None

@@ -82,12 +82,19 @@ class GhostMaloneMux:
 
         start_time = time.time()
 
+        # Initialize toolbox log
+        toolbox_log = []
+
         # Step 1: Analyze emotion
         t1 = time.time()
+        toolbox_log.append(
+            "🔧 **emotion_server.analyze()** - Detecting emotions from text"
+        )
         emotion_data = await self.mux.call(
             "analyze", {"text": user_text, "user_id": user_id}
         )
-        print(f"⏱️  Emotion analysis: {(time.time() - t1)*1000:.0f}ms")
+        elapsed = (time.time() - t1) * 1000
+        print(f"⏱️  Emotion analysis: {elapsed:.0f}ms")
 
         # Parse emotion response (it comes as JSON string from MCP)
         if isinstance(emotion_data, str):
@@ -97,13 +104,29 @@ class GhostMaloneMux:
         else:
             emotion_dict = emotion_data
 
+        toolbox_log.append(
+            f"   ✅ Found: {emotion_dict.get('labels', [])} ({elapsed:.0f}ms)"
+        )
+
         # Step 2: Infer psychological needs from emotion + context (fast, <100ms)
         t2 = time.time()
+        toolbox_log.append(
+            "\n📖 **needs_lexicon.infer_needs()** - Detecting psychological needs"
+        )
         emotion_labels = emotion_dict.get("labels", [])
         valence = emotion_dict.get("valence", 0.0)
         arousal = emotion_dict.get("arousal", 0.0)
         inferred_needs = infer_needs(emotion_labels, user_text, valence, arousal)
-        print(f"⏱️  Needs inference: {(time.time() - t2)*1000:.0f}ms")
+        elapsed = (time.time() - t2) * 1000
+        print(f"⏱️  Needs inference: {elapsed:.0f}ms")
+
+        if inferred_needs:
+            need_summary = ", ".join(
+                [f"{n['label']} ({n['confidence']:.0%})" for n in inferred_needs]
+            )
+            toolbox_log.append(f"   ✅ Detected: {need_summary} ({elapsed:.0f}ms)")
+        else:
+            toolbox_log.append(f"   ℹ️  No strong needs detected ({elapsed:.0f}ms)")
 
         # Debug: Print detected needs
         print(f"🎯 Inferred needs: {inferred_needs}")
@@ -113,6 +136,10 @@ class GhostMaloneMux:
 
         # Step 3 & 4: Parallelize memory operations (they don't depend on each other)
         t3 = time.time()
+        toolbox_log.append("\n🧠 **memory_server** - Parallel operations:")
+        toolbox_log.append("   📥 get_emotion_arc() - Retrieving emotion history")
+        toolbox_log.append("   💾 remember_event() - Storing current message")
+
         emotion_arc_task = self.mux.call("get_emotion_arc", {"k": 10})
 
         event = {
@@ -125,7 +152,9 @@ class GhostMaloneMux:
 
         # Run both memory operations in parallel
         emotion_arc, _ = await asyncio.gather(emotion_arc_task, remember_task)
-        print(f"⏱️  Memory operations (parallel): {(time.time() - t3)*1000:.0f}ms")
+        elapsed = (time.time() - t3) * 1000
+        print(f"⏱️  Memory operations (parallel): {elapsed:.0f}ms")
+        toolbox_log.append(f"   ✅ Completed ({elapsed:.0f}ms)")
 
         if isinstance(emotion_arc, str):
             import json
@@ -134,6 +163,9 @@ class GhostMaloneMux:
 
         # Step 5: Generate reflection using emotion + arc
         t4 = time.time()
+        toolbox_log.append(
+            "\n🤖 **reflection_server.generate()** - Claude response generation"
+        )
         tone = emotion_dict.get("tone", "neutral")
         reflection_response = await self.mux.call(
             "generate",
@@ -144,7 +176,9 @@ class GhostMaloneMux:
                 "emotion_arc": emotion_arc,
             },
         )
-        print(f"⏱️  Reflection generation (Claude): {(time.time() - t4)*1000:.0f}ms")
+        elapsed = (time.time() - t4) * 1000
+        print(f"⏱️  Reflection generation (Claude): {elapsed:.0f}ms")
+        toolbox_log.append(f"   ✅ Response generated ({elapsed:.0f}ms)")
 
         if isinstance(reflection_response, str):
             import json
@@ -158,6 +192,9 @@ class GhostMaloneMux:
             reply = str(reflection_response)
 
         # Step 6: Generate interventions (SIMPLIFIED FOR DEMO)
+        toolbox_log.append(
+            "\n💡 **intervention_lexicon** - Checking intervention criteria"
+        )
         message_count = len(conversation_context) + 1 if conversation_context else 1
         arousal = emotion_dict.get("arousal", 0.5)
 
@@ -172,11 +209,17 @@ class GhostMaloneMux:
             min_confidence=min_confidence,
             min_arousal=min_arousal,
         ):
+            toolbox_log.append(
+                f"   ✅ Thresholds met (msg≥{min_messages}, conf≥{min_confidence:.0%}, arousal≥{min_arousal:.1f})"
+            )
             need_type = inferred_needs[0]["need"]
             contexts = inferred_needs[0].get("matched_contexts", [])
             interventions = get_interventions(need_type, contexts, limit=3)
 
             if interventions:
+                toolbox_log.append(
+                    f"   📋 get_interventions() - Retrieved {len(interventions)} strategies for {need_type}"
+                )
                 intervention_text = format_interventions(
                     need_type,
                     interventions,
@@ -185,12 +228,30 @@ class GhostMaloneMux:
                     user_text=user_text,
                 )
                 print(f"💡 Showing {len(interventions)} interventions for {need_type}")
+        else:
+            reasons = []
+            if not inferred_needs:
+                reasons.append("no needs detected")
+            else:
+                if message_count < min_messages:
+                    reasons.append(f"msg count {message_count}<{min_messages}")
+                if inferred_needs[0]["confidence"] < min_confidence:
+                    reasons.append(
+                        f"confidence {inferred_needs[0]['confidence']:.0%}<{min_confidence:.0%}"
+                    )
+                if arousal < min_arousal:
+                    reasons.append(f"arousal {arousal:.1f}<{min_arousal:.1f}")
+            toolbox_log.append(f"   ℹ️  No interventions ({', '.join(reasons)})")
 
         # Combine empathetic response + interventions
         full_response = reply + intervention_text
 
         total_time = time.time() - start_time
         print(f"⏱️  TOTAL pipeline time: {total_time*1000:.0f}ms ({total_time:.1f}s)")
+        toolbox_log.append(f"\n⏱️  **Total pipeline:** {total_time*1000:.0f}ms")
+
+        # Format toolbox log
+        toolbox_log_str = "🧰 **Toolbox Activity:**\n\n" + "\n".join(toolbox_log)
 
         return {
             "user_text": user_text,
@@ -200,6 +261,7 @@ class GhostMaloneMux:
             "response": full_response,
             "tone": tone,
             "has_interventions": bool(intervention_text),
+            "toolbox_log": toolbox_log_str,
         }
 
     async def close(self):

@@ -38,15 +38,15 @@ CONTEXT_PATTERNS = {
     # ===== CONNECTION CONTEXTS =====
     # Deficits in belonging/relationships
     "isolated": r"(alone|lonely|isolated|by myself|left out|excluded|without me|on my own|don't have anyone|no one to talk|invisible to|no one there|nobody there)",
-    "rejected": r"(rejected|abandoned|left|ghosted|dumped|unwanted|unloved|won't talk|ignoring|avoiding me|cut off|don't.{0,15}respond|doesn't.{0,15}respond|won't.{0,15}respond|not.{0,15}respond(?:ed|ing)?|hasn't.{0,15}respond|didn't.{0,15}respond|not.{0,15}reply|not.{0,15}repl(?:ied|ying)|not.{0,15}answer(?:ed|ing)?|avoid me|seem to avoid|wasn't invited|didn't invite|unanswered|go unanswered|make excuses|not texting.{0,15}back|won't text)",
+    "rejected": r"(rejected|abandoned|left me|left behind|they left|ghosted|dumped|unwanted|unloved|won't talk|ignoring|avoiding me|cut off|don't.{0,15}respond|doesn't.{0,15}respond|won't.{0,15}respond|not.{0,15}respond(?:ed|ing)?|hasn't.{0,15}respond|didn't.{0,15}respond|not.{0,15}reply|not.{0,15}repl(?:ied|ying)|not.{0,15}answer(?:ed|ing)?|avoid me|seem to avoid|wasn't invited|didn't invite|unanswered|go unanswered|make excuses|not texting.{0,15}back|won't text)",
     "misunderstood": r"(misunderstood|don't get it|don't understand|not listening|not hearing|missing the point|doesn't.{0,15}listen|won't.{0,15}listen|different language|speaking a different|doesn't.{0,15}hear|misinterpret|nobody.{0,15}understands|nobody.{0,15}knows|nobody.{0,15}interested|doesn't.{0,15}share|doesn't.{0,15}talk|won't.{0,15}talk|doesn't.{0,15}open up)",
     "singled_out": r"(everyone else|everybody else|talks to everyone|except me|only me|just me|do things without|left behind|don't invite|didn't invite|don't call me|leaves me out|not included|don't pass|doesn't pass|won't pass|outsider|feel like.{0,15}outsider|make plans without|plans without including|always the one reaching out|don't include)",
     "disconnected": r"(disconnected|distant|drift|growing apart|not close|lost touch|pulling away|pull away|hard to.{0,15}connection|hard to connect|can't connect)",
     # ===== SECURITY CONTEXTS =====
     # Threats to safety/clarity
-    "uncertain": r"(don't know|uncertain|unsure|unclear|confused|no idea|what if|can't tell|ambiguous|what to do|where do i go|what next|what do i do|can't predict|unpredictable)",
+    "uncertain": r"(don't know|uncertain|unsure|unclear|confused|no idea|what if|can't tell|ambiguous|what to do|where do i go|what next|what do i do|can't predict|unpredictable|what's going to happen|what will happen|going to happen)",
     "unstable": r"(unstable|unpredictable|chaotic|all over|everything's changing|up in the air|falling apart|like always|never on time|unreliable|keeps changing|constantly changing|shifts again|everything shifts|stays stable|nothing.{0,15}stable|shifting ground|constantly shifting)",
-    "threatened": r"(threatened|unsafe|danger|risk|scared|vulnerable|exposed|at risk|pain again|go through that|rot in hell|worried.{0,15}bad|something bad|threats|not protected|not secure|don't feel.{0,15}secure)",
+    "threatened": r"(threatened|unsafe|danger|risk|scared|scary|vulnerable|exposed|at risk|pain again|go through that|rot in hell|worried|worrying|something bad|threats|not protected|not secure|don't feel.{0,15}secure)",
     "loss": r"(losing|lost|losing grip|slipping away|falling apart|coming undone)",
     # ===== REST CONTEXTS =====
     # Overload on capacity
