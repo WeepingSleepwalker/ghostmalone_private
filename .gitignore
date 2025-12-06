@@ -43,7 +43,7 @@ ENV/
 .ipynb_checkpoints
 
 # Memory/Data files
-# memory.json - needed for HuggingFace Spaces
+memory.json
 *.db
 *.sqlite
 
